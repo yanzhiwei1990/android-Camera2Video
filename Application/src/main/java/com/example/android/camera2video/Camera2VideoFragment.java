@@ -39,6 +39,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -57,9 +58,11 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -79,6 +82,7 @@ public class Camera2VideoFragment extends Fragment
     private static final String[] VIDEO_PERMISSIONS = {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
     };
 
     static {
@@ -189,7 +193,8 @@ public class Camera2VideoFragment extends Fragment
         @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
             mCameraDevice = cameraDevice;
-            startPreview();
+            //startPreview();
+            startRecordingVideo();
             mCameraOpenCloseLock.release();
             if (null != mTextureView) {
                 configureTransform(mTextureView.getWidth(), mTextureView.getHeight());
@@ -299,6 +304,10 @@ public class Camera2VideoFragment extends Fragment
 
     @Override
     public void onPause() {
+        if (mIsRecordingVideo) {
+            stopRecordingVideo();
+        }
+        closePreviewSession();
         closeCamera();
         stopBackgroundThread();
         super.onPause();
@@ -346,7 +355,7 @@ public class Camera2VideoFragment extends Fragment
             mBackgroundThread.join();
             mBackgroundThread = null;
             mBackgroundHandler = null;
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -531,8 +540,8 @@ public class Camera2VideoFragment extends Fragment
         }
         try {
             setUpCaptureRequestBuilder(mPreviewBuilder);
-            HandlerThread thread = new HandlerThread("CameraPreview");
-            thread.start();
+            /*HandlerThread thread = new HandlerThread("CameraPreview");
+            thread.start();*/
             mPreviewSession.setRepeatingRequest(mPreviewBuilder.build(), null, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -604,9 +613,15 @@ public class Camera2VideoFragment extends Fragment
     }
 
     private String getVideoFilePath(Context context) {
-        final File dir = context.getExternalFilesDir(null);
+        /*final File dir = Environment.getExternalStorageDirectory();//context.getExternalFilesDir(null);
         return (dir == null ? "" : (dir.getAbsolutePath() + "/"))
-                + System.currentTimeMillis() + ".mp4";
+                + System.currentTimeMillis() + ".mp4";*/
+        final File dir = Environment.getExternalStorageDirectory();
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy_MM_dd-HH_mm_ss");
+        Date curDate = new Date();
+        String currentTime = formatter.format(curDate);
+        return (dir == null ? "" : (dir.getAbsolutePath() + "/"))
+                + currentTime + ".mp4";
     }
 
     private void startRecordingVideo() {
